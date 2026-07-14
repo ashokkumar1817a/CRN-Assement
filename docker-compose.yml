@@ -1,0 +1,38 @@
+services:
+  productapi.db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: productapi-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "Your_password123"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - productapi-sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P $$SA_PASSWORD -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  productapi.api:
+    build:
+      context: .
+      dockerfile: src/API/Dockerfile
+    container_name: productapi-api
+    depends_on:
+      productapi.db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ApplyMigrationsOnStartup: "true"
+      ConnectionStrings__DefaultConnection: "Server=productapi.db,1433;Database=ProductApiDb;User Id=sa;Password=Your_password123;TrustServerCertificate=True;"
+      Jwt__Secret: "REPLACE_WITH_A_STRONG_SECRET_AT_LEAST_32_CHARS_LONG"
+      Jwt__Issuer: "ProductApi"
+      Jwt__Audience: "ProductApiClients"
+    ports:
+      - "8080:8080"
+
+volumes:
+  productapi-sqldata:
